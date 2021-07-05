@@ -2,6 +2,7 @@ const { PDFNet } = require("@pdftron/pdfnet-node");
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
+const { stringify } = require("querystring");
 
 const app = express();
 
@@ -65,6 +66,49 @@ app.get("/generateInvoice", (req, res) => {
     });
 });
 
+app.get("/toggle-ocg", (req, res) => {
+    let filename = "ocgsample.pdf";
+
+    const inputPath = path.resolve(__dirname, `./files/${filename}`);
+    const outputPath = path.resolve(__dirname, `./files/${filename}_toggled.pdf`);
+
+    const toggleLayers = async () => {
+        const pdfdoc = await PDFNet.PDFDoc.createFromFilePath(inputPath);
+
+        // get the config from the document
+        let ocgConfig = await pdfdoc.getOCGConfig();
+        // Get the Array containing the OCGS
+        let ocgs = await pdfdoc.getOCGs();
+
+        if (ocgs !== null) {
+            let i;
+            const sz = await ocgs.size();
+            for (i = 0; i < sz; ++i) {
+                const ocg = await PDFNet.OCG.createFromObj(await ocgs.getAt(i));
+                await ocg.setInitialState(ocgConfig, false);
+            }
+        }
+
+        await pdfdoc.save(outputPath, PDFNet.SDFDoc.SaveOptions.e_linearized);
+    }
+
+
+    PDFNet.runWithCleanup(toggleLayers).then(() => {
+        fs.readFile(outputPath, (err, data) => {
+            if (err) {
+                res.statusCode = 500;
+                res.end(err);
+            } else {
+                res.setHeader("ContentType", "application/pdf");
+                res.end(data);
+            }
+        })
+    }).catch(err => {
+        res.statusCode = 500;
+        res.end(err);
+    });
+})
+
 /*
 Sample shows how to add a watermark to your document. Watermarks can either be text or images
 */
@@ -124,18 +168,17 @@ app.get("/convertFromExcel", (req, res) => {
 
     const convertToPDF = async () => {
         // empty PDF to hold the file
-        const pdfdoc = await PDFNet.PDFDoc.create();
-        await pdfdoc.initSecurityHandler();
+        //const pdfdoc = await PDFNet.PDFDoc.create();
+        //await pdfdoc.initSecurityHandler();
         // perform the actual conversion
-        await PDFNet.Convert.toPdf(pdfdoc, inputPath);
+        //await PDFNet.Convert.toPdf(pdfdoc, inputPath);
         const options = await PDFNet.Convert.createOfficeToPDFOptions();
-        options.setApplyPageBreaksToSheet(true);
-
+        options.setExcelDefaultCellBorderWidth(0.001);
         let results = await PDFNet.Convert.officeToPdfWithPath(inputPath, options).catch(err => console.log(err));
+        PDFNet.Convert.office2PDF
 
-
-        results.save(outputPath2, PDFNet.SDFDoc.SaveOptions.e_linearized);
-        pdfdoc.save(outputPath, PDFNet.SDFDoc.SaveOptions.e_linearized);
+        results.save(outputPath, PDFNet.SDFDoc.SaveOptions.e_linearized);
+        //pdfdoc.save(outputPath, PDFNet.SDFDoc.SaveOptions.e_linearized);
     }
 
     PDFNet.runWithCleanup(convertToPDF).then(() => {
