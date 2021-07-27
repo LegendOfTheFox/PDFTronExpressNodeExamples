@@ -66,6 +66,47 @@ app.get("/generateInvoice", (req, res) => {
     });
 });
 
+app.get("/template-generation", (req,res) => {
+    const json_data_string = {
+        "legal_heading":"End-User Agreement",
+        "indemnification_clause":"Sed ut unde omnis iste natus error sit volup tatem dolo remque laud antium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi archi tecto beatae vitae dicta sunt.",
+        "escrow_clause":"Lorem ipsum dolor sit amet, consec  tetuer adipi scing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum sociis natoque pena tibus et magnis dis partu rient montes, nascetur ridiculus mus. Donec quam felis, ultri cies nec, pellent esque faucibus. Nullam quis ante. Etiam sit amet orci eget eros fauc ibus tinc idunt. Duis leo. Sed frin gilla mauris sit amet nibh. Donec sodales sag ittis magna. Sed conse quat, leo eget",
+        "arbitration_clause":"pretium quis, sem. Nulla conse quat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venen atis vitae, justo. Nullam dictum felis eu pede mollis pretium. Integer tinc",
+        //"image_url": {image_url: "./files/fox.jpg", width: 500, height: 500}
+        "image_url": {image_url: "http://www.httpvshttps.com/letsencrypt-logo-horizontal.svg", width: 500, height: 500}
+    };
+
+    const inputPath = path.resolve(__dirname, "./files/templatetest.docx");
+
+    const main = async() => {
+    try {
+        // create an options object and add your template
+        // replacement values to it. If this option is not
+        // set, the document will convert as if it is a normal
+        // office documents, with no template generation.
+        const options = new PDFNet.Convert.OfficeToPDFOptions();
+        await options.setTemplateParamsJson(JSON.stringify(json_data_string));
+
+        // perform the conversion with the template replacement data
+        const pdfdoc = await PDFNet.Convert.officeToPdfWithPath(inputPath, options);
+
+        await pdfdoc.save('template-1.pdf', 0);
+
+        console.log('Done.');
+    } catch (err) {
+        console.log(err);
+    }
+};
+
+PDFNet.runWithCleanup(main)
+    .catch(function (error) {
+        console.log("Error: " + JSON.stringify(error));
+    })
+    .then(function () {
+        PDFNet.shutdown();
+    });
+})
+
 app.get("/toggle-ocg", (req, res) => {
     let filename = "ocgsample.pdf";
 
