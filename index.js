@@ -14,6 +14,36 @@ app.get("/", (req, res) => {
 });
 
 
+app.get("/convertViewerOptimized", (req, res) => {
+    const inputPath = path.resolve(__dirname, "./files/10mbsample.pdf");
+    const outputPath = path.resolve(__dirname, "./files/10mbsampleOptimized.pdf");
+
+    const main = async () => {
+        const doc = await PDFNet.PDFDoc.createFromFilePath(inputPath);
+
+        const opts = new PDFNet.PDFDoc.ViewerOptimizedOptions();
+
+        // A number from 0 (include all thumbnails) to 100
+        // (include only the first thumbnail). The default value is 50.
+        opts.setThumbnailRenderingThreshold(0);
+
+        // The maximum allowed length for the thumbnail's height/width.
+        // The default thumbnail size is 1024.
+        opts.setThumbnailSize(512);
+
+
+        // Optimize pdf
+        await doc.saveViewerOptimized(outputPath, opts);
+    };
+    
+    PDFNet.runWithCleanup(main).then(function() {
+        PDFNet.shutdown();
+        console.log("Process Complete");
+    });
+
+
+});
+
 /*
 Sample endpoint showcases how values can be subbed out of a template PDF and be replaced with values of your choice
 Values to replaced should be within []. Examples on the pdf include [QuoteNumber] & [CustomerName]
@@ -73,7 +103,7 @@ app.get("/template-generation", (req,res) => {
         "escrow_clause":"Lorem ipsum dolor sit amet, consec  tetuer adipi scing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum sociis natoque pena tibus et magnis dis partu rient montes, nascetur ridiculus mus. Donec quam felis, ultri cies nec, pellent esque faucibus. Nullam quis ante. Etiam sit amet orci eget eros fauc ibus tinc idunt. Duis leo. Sed frin gilla mauris sit amet nibh. Donec sodales sag ittis magna. Sed conse quat, leo eget",
         "arbitration_clause":"pretium quis, sem. Nulla conse quat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venen atis vitae, justo. Nullam dictum felis eu pede mollis pretium. Integer tinc",
         //"image_url": {image_url: "./files/fox.jpg", width: 500, height: 500}
-        "image_url": {image_url: "http://www.httpvshttps.com/letsencrypt-logo-horizontal.svg", width: 500, height: 500}
+        "image_url": {image_url: "https://image.shutterstock.com/image-photo/red-fox-vulpes-sitting-attention-260nw-392638390.jpg", 'width': 500, 'height': 500}
     };
 
     const inputPath = path.resolve(__dirname, "./files/templatetest.docx");
