@@ -4,6 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const { stringify } = require("querystring");
 
+
 const app = express();
 
 app.get("/", (req, res) => {
@@ -11,6 +12,82 @@ app.get("/", (req, res) => {
         status: "success",
         data: "Hello from the server"
     })
+});
+
+//Shows Template Generation Using an Excel Document as the template
+app.get("/templateGenerationExcel", (req, res) => {
+    const inputPath = path.resolve(__dirname, "./files/excelBasicTemplate.xlsx");
+    const outputPath = path.resolve(__dirname, "./files/excelConverted.pdf");
+
+    const main = async () => {
+        let data = {
+            "test": "1st Test",
+            "test2": "2nd Test",
+            "test3": "Final Test"
+        }
+
+        const options = new PDFNet.Convert.OfficeToPDFOptions();
+        options.setTemplateParamsJson(JSON.stringify(data));
+
+        // perform the conversion with the template replacement data
+        const doc = await PDFNet.Convert.officeToPdfWithPath(inputPath, options);
+
+        await doc.save(outputPath, PDFNet.SDFDoc.SaveOptions.e_linearized);
+    };
+
+    PDFNet.runWithCleanup(main).then(function() {
+        PDFNet.shutdown();
+        console.log("Process Complete");
+    }).catch(err => console.log(err));
+});
+
+app.get("/ocrConversion", (req, res) => {
+    const inputPath = path.resolve(__dirname, "./files/24144OCRTest.pdf");
+    //const inputPath = path.join(__dirname, "./files/german_kids_song.pdf");
+    const outputPath = path.resolve(__dirname, "./files/24144OCRTestOCRConverted.pdf");
+    //const outputPath = path.resolve(__dirname, "./files/german_kids_songOCRConverted.pdf");
+    const ocrPath = path.resolve(__dirname, "./additional_libs/OCRModule.exe");
+
+    const main = async () => {
+        const doc = await PDFNet.PDFDoc.createFromFilePath(inputPath);
+
+
+        PDFNet.addResourceSearchPath(ocrPath);
+
+        // Set English as the language of choice
+        const ocrOpts = new PDFNet.OCRModule.OCROptions();
+        ocrOpts.addLang("eng");
+        ocrOpts.addDPI(72);
+
+        // Run OCR on the PDF with options
+        try{
+            await PDFNet.OCRModule.processPDF(doc, ocrOpts);
+        }catch(e){
+            console.log(e);
+        }
+        
+
+        //const opts = new PDFNet.PDFDoc.ViewerOptimizedOptions();
+
+        // A number from 0 (include all thumbnails) to 100
+        // (include only the first thumbnail). The default value is 50.
+        //opts.setThumbnailRenderingThreshold(0);
+
+        // The maximum allowed length for the thumbnail's height/width.
+        // The default thumbnail size is 1024.
+        //opts.setThumbnailSize(512);
+
+
+        // Optimize pdf
+        //await doc.saveViewerOptimized(outputPath, opts);
+        doc.save(outputPath, 0);
+    };
+    
+    PDFNet.runWithCleanup(main).then(function() {
+        PDFNet.shutdown();
+        console.log("Process Complete");
+    }).catch(err => console.log(err));
+
 });
 
 
@@ -40,8 +117,6 @@ app.get("/convertViewerOptimized", (req, res) => {
         PDFNet.shutdown();
         console.log("Process Complete");
     });
-
-
 });
 
 /*
