@@ -14,6 +14,237 @@ app.get("/", (req, res) => {
     })
 });
 
+app.get("/pdfToTiff", (req, res) => {
+    const inputPath = path.resolve(__dirname, "./files/arabicSample.pdf");
+    const outputPath = path.resolve(__dirname, "./files/arabicSampleConverted.tiff");
+
+    const main = async () => {
+        
+        const tiff_options = new PDFNet.Convert.TiffOutputOptions();
+        tiff_options.setDPI(200);
+        tiff_options.setDither(true);
+        tiff_options.setMono(true);
+        
+        await PDFNet.Convert.fileToTiff(inputPath, outputPath, tiff_options);
+        console.log('Saved tiff');
+    }
+
+    PDFNet.runWithCleanup(main).then(function() {
+        PDFNet.shutdown();
+        console.log("Process Complete");
+    }).catch(err => console.log(err));
+});
+
+
+app.get("/pdfTemplate", (req, res) => {
+    const inputPath = path.resolve(__dirname, "./files/CarAdFormat2.pdf");
+    //const outputPath = path.resolve(__dirname, "./files/arabicSampleConverted.tiff");
+
+    const main = async () => {
+        const doc = await PDFNet.PDFDoc.createFromFilePath(inputPath);
+        const reader = await PDFNet.ElementReader.create();
+
+        const test = await doc.getTrailer();
+        console.log(test);
+
+        let itr2 = await test.getDictIterator();
+        while (itr2.hasNext()) {
+            let key = await itr2.key();
+            let value = await itr2.value();
+
+            console.log(`key: ${key}, value: ${value}`);
+            console.log(key);
+            console.log(value);
+            // ...
+            itr2.Next()
+        }
+        //let test = await trailer.findObj
+
+        // Read page content on every page in the document
+        const itr = await doc.getPageIterator();
+
+        for (itr; await itr.hasNext(); itr.next())
+        {
+        // Read the page
+        const page = await itr.current();
+        reader.beginOnPage(page);
+        await ProcessElements(reader);
+        reader.end();
+        }
+        
+
+    }
+
+    async function ProcessElements(reader)
+    {
+        // Traverse the page display list
+        for (let element = await reader.next(); element !== null; element = await reader.next()) {
+            const elementType = await element.getType();
+            switch (elementType)
+            {
+                case PDFNet.Element.Type.e_path:
+                {
+                    if (element.isClippingPath())
+                    {}
+                    // ...
+                    break;
+                }
+                case PDFNet.Element.Type.e_text:
+                {
+                    const text_mtx = await element.getType();
+
+                    console.log(text_mtx);
+                    // ...
+                    break;
+                }
+                case PDFNet.Element.Type.e_form:
+                {
+                    reader.formBegin();
+                    ProcessElements(reader);
+                    reader.end();
+                    break;
+                }
+            }
+        }
+    }
+
+    PDFNet.runWithCleanup(main).then(function() {
+        PDFNet.shutdown();
+        console.log("Process Complete");
+    }).catch(err => console.log(err));
+});
+
+
+app.get("/tiffToPdf", (req, res) => {
+    const inputPath = path.resolve(__dirname, "./files/arabicSampleConverted.tiff");
+    const outputPath = path.resolve(__dirname, "./files/arabicSampleConverted.pdf");
+
+    const main = async () => {
+        const pdfdoc = await PDFNet.PDFDoc.create();
+        await pdfdoc.initSecurityHandler();
+
+        await PDFNet.Convert.toPdf(pdfdoc, inputPath);
+        await pdfdoc.save(outputPath, PDFNet.SDFDoc.SaveOptions.e_linearized);
+    }
+
+    PDFNet.runWithCleanup(main).then(function() {
+        PDFNet.shutdown();
+        console.log("Process Complete");
+    }).catch(err => console.log(err));
+});
+
+app.get("/signatureTest", (req, res) => {
+    const inputPath = path.resolve(__dirname, "./files/signsample.pdf");
+    const outputPath = path.resolve(__dirname, "./files/signsampleSigned.pdf");
+
+    const main = async () => {
+        const doc = await PDFNet.PDFDoc.createFromFilePath(inputPath);
+        const cert_file_path = "/files/cert.p12";
+        const approvalFieldName = "test1";
+        const appearance_img_path = "/files/fox.png";
+
+        doc.lock();
+
+        const sigHandlerId = await doc.addStdSignatureHandlerFromURL(cert_file_path, 'test');
+
+        const foundApprovalField = await doc.getField(approvalFieldName);
+        const approvalSigField = await PDFNet.DigitalSignatureField.createFromField(foundApprovalField);
+
+        await approvalSigField.setLocation("Vancouver, BC");
+        await approvalSigField.setReason("Document approval.");
+        await approvalSigField.setContactInfo("www.pdftron.com");
+
+        const img = await PDFNet.Image.createFromURL(doc, appearance_img_path);
+        const approvalSignatureWidget = await PDFNet.SignatureWidget.createWithDigitalSignatureField(doc, await PDFNet.Rect.init(0, 100, 200, 150), approvalSigField);
+        await approvalSignatureWidget.createSignatureAppearance(img);
+        const page1 = await doc.getPage(1);
+        page1.annotPushBack(approvalSignatureWidget);
+
+        // Prepare the signature and signature handler for signing.
+        await approvalSigField.signOnNextSaveWithCustomHandler(sigHandlerId);
+
+        // The actual approval signing will be done during the save operation.
+        await doc.save(outputPath, PDFNet.SDFDoc.SaveOptions.e_linearized);
+    }
+
+    PDFNet.runWithCleanup(main).then(function() {
+        PDFNet.shutdown();
+        console.log("Process Complete");
+    }).catch(err => console.log(err));
+});
+
+
+app.get("/scalePage", (req, res) => {
+    const inputPath = path.resolve(__dirname, "./files/10mbsample.docx");
+    const outputPath = path.resolve(__dirname, "./files/10mbsampleScaled.pdf");
+
+    const main = async () => {
+        // open document from the filesystem
+        const doc = await PDFNet.PDFDoc.createFromFilePath(inputPath);
+
+        const pageIterator = await doc.getPageIterator();
+
+        for(pageIterator; await pageIterator.hasNext(); pageIterator.next())
+        {
+            const page = await pageIterator.current();
+            //page.scale()
+        }
+    }
+
+
+});
+
+app.get("/convertWordToPDFwithFontFile", (req, res) => {
+    const inputPath = path.resolve(__dirname, "./files/agilelaw/ADS02.docx");
+    const outputPath = path.resolve(__dirname, "./files/agilelaw/ADSNewConversionTest.pdf");
+
+    const main = async () => {
+        await PDFNet.addResourceSearchPath("./files/agilelaw/fonts");
+
+        let data = {
+            "setLayoutResourcesPluginPath": "./files/agilelaw/fonts"
+        }
+        const options = await PDFNet.Convert.OfficeToPDFOptions(JSON.stringify(data));
+        //options.setLayoutResourcesPluginPath("./files/agilelaw/fonts");
+
+        const pdfdoc = await PDFNet.Convert.officeToPdfWithPath(inputPath, options);
+
+        //const pdfdoc = await PDFNet.PDFDoc.create();
+        //await PDFNet.Convert.toPdf(pdfdoc, "./files/agilelaw/ADS.docx");
+
+        // save the result
+        await pdfdoc.save(outputPath, PDFNet.SDFDoc.SaveOptions.e_linearized);
+
+        console.log("Conversion Complete");
+    }
+
+    PDFNet.runWithCleanup(main).then(function() {
+        PDFNet.shutdown();
+        console.log("Process Complete");
+    }).catch(err => console.log(err));
+});
+
+app.get("/convertWordToPDF", (req, res) => {
+    const inputPath = path.resolve(__dirname, "./files/conversiontest.docx");
+    const outputPath = path.resolve(__dirname, "./files/conversionTestConverted.pdf");
+    let generatedPDF;
+    const main = async () => {
+        let file = fs.readFileSync(inputPath);
+        const docFilter = await PDFNet.Filter.createFromMemory(file);
+        const doc = await PDFNet.Convert.officeToPdfWithFilter(docFilter, new PDFNet.Obj('0'));
+        //await doc.save(outputPath, PDFNet.SDFDoc.SaveOptions.e_linearized);
+
+        generatedPDF = await doc.saveMemoryBuffer(PDFNet.SDFDoc.SaveOptions.e_remove_unused);
+    }
+
+    PDFNet.runWithCleanup(main).then(function() {
+        PDFNet.shutdown();
+        res.setHeader("ContentType", "application/pdf");
+        res.end(generatedPDF);
+        console.log("Process Complete");
+    }).catch(err => console.log(err));
+});
+
 //Shows Template Generation Using an Excel Document as the template
 app.get("/templateGenerationExcel", (req, res) => {
     const inputPath = path.resolve(__dirname, "./files/excelBasicTemplate.xlsx");
