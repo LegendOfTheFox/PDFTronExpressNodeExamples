@@ -11,7 +11,35 @@ app.get("/", (req, res) => {
     res.status(200).json({
         status: "success",
         data: "Hello from the server"
-    })
+    });
+});
+
+app.get("/htmlToPDF", (req, res) => {
+    const outputPath = path.resolve(__dirname, "./files/html2pdfExample.pdf");
+    const testURL = "https://www.google.ca/"
+
+    const main = async () => {
+        await PDFNet.HTML2PDF.setModulePath('./additional_libs/');
+        
+        const html2pdf = await PDFNet.HTML2PDF.create();
+        const doc = await PDFNet.PDFDoc.create();
+
+        html2pdf.insertFromUrl(testURL);
+
+        if (await html2pdf.convert(doc)) {
+          doc.save(outputPath, PDFNet.SDFDoc.SaveOptions.e_linearized);
+        } else {
+          console.log('Conversion failed.');
+        }
+    }
+
+    
+    
+    PDFNet.runWithCleanup(main).then(function() {
+        PDFNet.shutdown();
+        console.log("Process Complete");
+    }).catch(err => console.log(err));
+
 });
 
 app.get("/pdfToTiff", (req, res) => {
